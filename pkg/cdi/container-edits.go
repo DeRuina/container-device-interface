@@ -94,12 +94,7 @@ func (e *ContainerEdits) Apply(spec *oci.Spec) error {
 		// not write host-derived information back into the cache: that would
 		// make later injections skip the host check and reuse stale values,
 		// and it races with concurrent injections of the same device.
-		node := *d
-		if d.FileMode != nil {
-			mode := *d.FileMode
-			node.FileMode = &mode
-		}
-		dn := DeviceNode{&node}
+		dn := DeviceNode{deepCopyDeviceNode(d)}
 
 		err := dn.fillMissingInfo()
 		if err != nil {
@@ -472,4 +467,27 @@ func specHasUserNamespace(spec *oci.Spec) bool {
 		}
 	}
 	return false
+}
+
+// deepCopyDeviceNode returns a copy of the given device node that shares no
+// pointers with it, so that filling in or exporting the copy cannot modify
+// the original (for instance a device node of a cached Spec).
+func deepCopyDeviceNode(d *cdi.DeviceNode) *cdi.DeviceNode {
+	if d == nil {
+		return nil
+	}
+	c := *d
+	if d.FileMode != nil {
+		mode := *d.FileMode
+		c.FileMode = &mode
+	}
+	if d.UID != nil {
+		uid := *d.UID
+		c.UID = &uid
+	}
+	if d.GID != nil {
+		gid := *d.GID
+		c.GID = &gid
+	}
+	return &c
 }
